@@ -37,6 +37,42 @@ static func create_state_from_spec(puzzle_spec: Dictionary) -> PuzzleState:
 		st.rings.append(item)
 	return st
 
+## The authoritative dependency state of a ring.
+##
+## The board draws a pin for every connector a ring holds, and a ring that is
+## still waiting on another ring must not look unlocked. This is the single
+## source of that state, so the drawing and the rule can never disagree.
+##
+## Returns {"locked": bool, "unmet": int, "locked_by": int}
+static func dependency_state(state: PuzzleState, ring_idx: int) -> Dictionary:
+	var out := {"locked": false, "unmet": 0, "locked_by": -1}
+	if state == null or ring_idx < 0 or ring_idx >= state.rings.size():
+		return out
+	var r: Dictionary = state.rings[ring_idx]
+
+	# The slider pin has to be slid open before the ring can move.
+	if not bool(r.get("slider_unlocked", true)):
+		out["locked"] = true
+		out["unmet"] += 1
+
+	# The locked-ring curse: this ring waits for a specific other ring.
+	var lock_dep := int(r.get("locked_until_free", -1))
+	if bool(r.get("initially_locked", false)) and lock_dep >= 0 and lock_dep < state.rings.size():
+		if not bool(state.rings[lock_dep].get("released", false)):
+			out["locked"] = true
+			out["unmet"] += 1
+			out["locked_by"] = lock_dep
+
+	# The dependency list: rings that must be freed before this one can go.
+	for req_idx in r.get("requires_free", []):
+		var ri := int(req_idx)
+		if ri >= 0 and ri < state.rings.size():
+			if not bool(state.rings[ri].get("released", false)):
+				out["locked"] = true
+				out["unmet"] += 1
+	return out
+
+
 static func can_rotate_ring(state: PuzzleState, ring_idx: int, direction_sign: int = 1) -> Dictionary:
 	if ring_idx < 0 or ring_idx >= state.rings.size():
 		return {"ok": false, "reason": "invalid_index"}

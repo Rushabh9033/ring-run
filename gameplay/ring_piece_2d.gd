@@ -18,6 +18,10 @@ var is_grabbed: bool = false
 var is_near_aligned: bool = false
 var is_hinted: bool = false
 var curse_pulse_time: float = 0.0
+## How many dependencies this ring is still waiting on. A ring that is waiting
+## must not look unlocked, so the connector pins draw closed.
+var unmet_dependencies: int = 0
+var is_dependency_locked: bool = false
 var jiggle_offset_rad: float = 0.0
 
 # --- tube colours, derived from the ring colour ---
@@ -40,6 +44,15 @@ func setup(idx: int, spec: Dictionary) -> void:
 	_precompute_colors()
 	var st := int(ring_data.get("current_step", ring_data.get("start_step", 0)))
 	rotation = PieceGeometry.step_to_rad(st)
+	queue_redraw()
+
+
+## Tell the ring whether it is still waiting on another one.
+func set_dependency_state(unmet: int, locked: bool) -> void:
+	if unmet_dependencies == unmet and is_dependency_locked == locked:
+		return
+	unmet_dependencies = unmet
+	is_dependency_locked = locked
 	queue_redraw()
 
 
@@ -161,9 +174,11 @@ func _draw() -> void:
 		# 5. Golden node bands along the arc
 		_draw_node_bands(i, thickness)
 
-		# 6. Specular sheen, offset up and left like a studio light
-		_draw_tube(_offset_pts(seg, Vector2(-1.3, -1.7)), thickness * 0.30, _c_light)
-		_draw_tube(_offset_pts(seg, Vector2(-1.7, -2.2)), thickness * 0.11, _c_specular)
+		# 6. Specular sheen, offset up and left like a studio light. The
+		# tight highlight is folded into the broad one so the tube is not a
+		# stack of parallel lines.
+		_draw_tube(_offset_pts(seg, Vector2(-1.3, -1.7)), thickness * 0.32, _c_light)
+		_draw_tube(_offset_pts(seg, Vector2(-1.6, -2.0)), thickness * 0.13, _c_specular)
 
 		# 7. Wooden end caps at the gap edges
 		_draw_end_caps(i, thickness, base)
@@ -174,14 +189,27 @@ func _draw() -> void:
 	var gap_center := PieceGeometry.point_on_shape(shape, radius, 0.0)
 	draw_circle(gap_center, 4.5, Color("#2E7D32") if is_near_aligned else Color(0.12, 0.23, 0.18, 0.55))
 
-	# Connector pins on the ring body
+	# Connector pins on the ring body. One pin per connector the ring
+	# actually holds, and a pin that is still waiting on another ring draws
+	# closed, so the board never shows an unlock that is not there yet.
 	var thickness2 := float(ring_data.get("thickness_px", 14.0))
 	var conn_count := int(ring_data.get("connectors", 1))
 	for c_i in range(conn_count):
 		var pin_angle := PI + float(c_i) * (PI * 0.5)
 		var p := PieceGeometry.point_on_shape(shape, radius, pin_angle)
 		draw_circle(p, thickness2 * 0.55, Color("#1E3A2F"))
-		draw_circle(p, thickness2 * 0.30, Color("#FFFDF7"))
+		if is_dependency_locked:
+			# Closed pin: the connector has not been freed yet.
+			draw_circle(p, thickness2 * 0.30, Color("#B4553F"))
+		else:
+			draw_circle(p, thickness2 * 0.30, Color("#FFFDF7"))
+
+	# If the ring is still waiting on another one, say so plainly.
+	if is_dependency_locked and unmet_dependencies > 0:
+		var badge := radius - thickness2 * 0.2
+		var bp := PieceGeometry.point_on_shape(shape, radius, PI * 0.5)
+		draw_circle(bp, thickness2 * 0.62, Color("#B4553F"))
+		draw_circle(bp, thickness2 * 0.30, Color("#FFFDF7"))
 
 	# Slider pin lock, if not yet slid open
 	if not bool(ring_data.get("slider_unlocked", true)):
@@ -238,9 +266,11 @@ func _draw_end_caps(seg_index: int, thickness: float, base: Color) -> void:
 	var seg := _segments[seg_index]
 	if seg.size() < 2:
 		return
+	# One cap per end, filled with the tube's own colour so the cut end reads
+	# as bamboo rather than as a bead stuck to the arc.
 	var cap_r := thickness * 0.5
 	for endpoint in [seg[0], seg[seg.size() - 1]]:
 		var p: Vector2 = endpoint
-		draw_circle(p, cap_r * 0.82, Color("#DFC088"))
-		draw_circle(p, cap_r * 0.52, Color("#F2DFB6"))
-		draw_circle(p, cap_r * 0.20, base.darkened(0.2))
+		draw_circle(p, cap_r, base)
+		draw_circle(p, cap_r * 0.62, Color("#DFC088"))
+		draw_circle(p, cap_r * 0.26, base.darkened(0.22))

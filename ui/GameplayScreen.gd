@@ -2,6 +2,7 @@ class_name GameplayScreen
 extends Control
 
 const RingReleaseFXScript = preload("res://gameplay/ring_release_fx.gd")
+const PieceGeometry = preload("res://gameplay/piece_geometry.gd")
 const VfxLib = preload("res://gameplay/vfx.gd")
 const ConfettiBurstScript = preload("res://gameplay/confetti_burst.gd")
 
@@ -512,10 +513,11 @@ func _rebuild_ring_nodes() -> void:
 	gate_guide.max_radius = max_r
 	gate_guide.queue_redraw()
 
-	# Smart framing scale so large Boss puzzles fit cleanly inside 500px width
-	var avail_radius := minf(get_viewport_rect().size.x * 0.46, 260.0)
-	var scale_factor := clampf(avail_radius / maxf(120.0, max_r + 28.0), 0.58, 1.7)
-	board_root.scale = Vector2(scale_factor, scale_factor)
+	# The board geometry is set ONCE, now that the new ring specs are known.
+	# A second, different scale calculation used to run here and overwrite the
+	# one in _layout_board(), so the board ended up a different size depending
+	# on which of the two ran last.
+	_layout_board()
 
 ## The order rings drop in: the biggest ring first, then the rest by radius.
 ## A big ring landing under a small one looks wrong.
@@ -543,6 +545,10 @@ func _sync_ring_nodes() -> void:
 		var r_node := ring_nodes[idx]
 		r_node.sync_from_state(r_spec)
 		r_node.visible = not bool(r_spec.get("released", false))
+		# The dependency state comes from the authoritative rule, so the pin
+		# can never show an unlock the solver would not allow.
+		var dep: Dictionary = PuzzleRules.dependency_state(RunController.current_puzzle_state, idx)
+		r_node.set_dependency_state(int(dep.get("unmet", 0)), bool(dep.get("locked", false)))
 	_update_par_label()
 
 func _update_par_label() -> void:
@@ -593,21 +599,38 @@ func _gui_input(event: InputEvent) -> void:
 	elif mouse_motion != null and drag_controller.is_dragging:
 		drag_controller.update_drag(mouse_motion.position, RunController.current_puzzle_state)
 
+## Which ring did the touch land on?
+##
+## The test follows the same outline the ring is drawn from, so a square, an
+## oval or a triangle is grabbed where the player sees it - not where a circle
+## of the same radius would be. The gap is open, so a touch inside the exit
+## channel does not grab the ring.
+##
+## When two rings are under the finger the closer outline wins, and a tie goes
+## to the smaller ring, which is the one drawn on top.
 func _pick_ring_at(local_pos: Vector2) -> int:
 	if RunController.current_puzzle_state == null:
 		return -1
-	var dist := local_pos.length()
 	var best_idx := -1
-	var best_diff := 24.0
+	var best_dist := INF
+	var best_radius := INF
 	var rings_arr := RunController.current_puzzle_state.rings
 	for idx in range(rings_arr.size()):
 		var r_spec: Dictionary = rings_arr[idx]
 		if bool(r_spec.get("released", false)):
 			continue
-		var rad := float(r_spec.get("radius_px", 70.0))
-		var diff := absf(dist - rad)
-		if diff < best_diff:
-			best_diff = diff
+		var radius := float(r_spec.get("radius_px", 70.0))
+		var thickness := float(r_spec.get("thickness_px", 14.0))
+		var shape := str(r_spec.get("shape", "circle"))
+		var gap_deg := float(r_spec.get("gap_width_deg", 44.0))
+		var has_double_gap: bool = (r_spec.get("target_steps", [0]) as Array).size() >= 2
+		var d := PieceGeometry.distance_to_ring(shape, radius, gap_deg, has_double_gap, local_pos)
+		var tolerance: float = maxf(thickness * 0.5 + 12.0, 16.0)
+		if d > tolerance:
+			continue
+		if d < best_dist - 0.5 or (absf(d - best_dist) <= 0.5 and radius < best_radius):
+			best_dist = d
+			best_radius = radius
 			best_idx = idx
 	return best_idx
 
@@ -615,10 +638,10 @@ func _on_ring_grabbed(ring_index: int) -> void:
 	if ring_index >= 0 and ring_index < ring_nodes.size():
 		ring_nodes[ring_index].set_grabbed(true)
 		var r_spec: Dictionary = RunController.current_puzzle_state.rings[ring_index]
+		# The drag controller already plays the grab sound and the grab haptic,
+		# so this only adds the visual sparkle.
 		RingReleaseFXScript.pickup_spark(board_root, ring_nodes[ring_index].global_position,
 			Color.from_string(str(r_spec.get("color", "#4CAF50")), RingTheme.BAMBOO))
-		AudioService.play_piece_select()
-		PlatformServices.trigger_haptic("piece_select")
 
 func _on_ring_rotated_live(ring_index: int, angle_rad: float, near_align: bool) -> void:
 	if ring_index >= 0 and ring_index < ring_nodes.size():

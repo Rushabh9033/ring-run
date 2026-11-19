@@ -15,6 +15,7 @@ var ring_start_angle: float = 0.0
 var current_drag_angle: float = 0.0
 var last_tick_step: int = -1
 var is_dragging: bool = false
+var _was_near_align: bool = false
 var board_center: Vector2 = Vector2(270, 470)
 
 func begin_drag(ring_index: int, touch_pos: Vector2, initial_step: int) -> void:
@@ -24,6 +25,7 @@ func begin_drag(ring_index: int, touch_pos: Vector2, initial_step: int) -> void:
 	ring_start_angle = PieceGeometry.step_to_rad(initial_step)
 	current_drag_angle = ring_start_angle
 	last_tick_step = initial_step
+	_was_near_align = false
 	AudioService.play_piece_select()
 	PlatformServices.trigger_haptic("piece_select")
 	ring_grabbed.emit(ring_index)
@@ -54,9 +56,12 @@ func update_drag(touch_pos: Vector2, puzzle_state: PuzzleRules.PuzzleState) -> v
 
 	var targets: Array = r.get("target_steps", [0])
 	var near_align := PieceGeometry.is_angle_near_target(current_drag_angle, targets)
-	if near_align:
+	# Edge-triggered: the chime plays once as the gap enters the tolerance,
+	# not on every frame the finger sits inside it.
+	if near_align and not _was_near_align:
 		AudioService.play_near_alignment()
 		PlatformServices.trigger_haptic("gap_align")
+	_was_near_align = near_align
 	ring_rotated_live.emit(active_ring_index, current_drag_angle, near_align)
 
 func end_drag(puzzle_state: PuzzleRules.PuzzleState) -> void:

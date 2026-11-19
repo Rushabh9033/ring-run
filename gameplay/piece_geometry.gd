@@ -39,6 +39,59 @@ static func _sample_shape_arc(shape: String, radius: float, start_a: float, end_
 		pts.append(point_on_shape(shape, radius, a))
 	return pts
 
+## The distance from a point to the nearest SOLID part of a ring's outline.
+##
+## This is the same outline the ring is drawn from, so a touch lands where
+## the player sees the tube. The gaps are open: a touch inside a gap is not
+## on the ring at all, which is what lets the exit channel be reached.
+##
+## A pure radial test (comparing |point| with the radius) is wrong for every
+## shape but the circle - a square's radius depends on the angle, and an oval
+## and a triangle are not round at all.
+static func distance_to_ring(shape: String, radius: float, gap_width_deg: float, has_double_gap: bool, point: Vector2) -> float:
+	# A circle is exact, and it is the common case.
+	if shape != "circle" and shape != "oval" and shape != "square" and shape != "triangle":
+		return absf(point.length() - radius)
+
+	var half_gap := deg_to_rad(gap_width_deg * 0.5)
+	var arcs: Array[Vector2] = []
+	if has_double_gap:
+		arcs.append(Vector2(half_gap, PI - half_gap))
+		arcs.append(Vector2(PI + half_gap, TAU - half_gap))
+	else:
+		arcs.append(Vector2(half_gap, TAU - half_gap))
+
+	var best := INF
+	for arc in arcs:
+		var steps := 72
+		var prev := point_on_shape(shape, radius, arc.x)
+		for i in range(1, steps + 1):
+			var a: float = lerpf(arc.x, arc.y, float(i) / float(steps))
+			var cur := point_on_shape(shape, radius, a)
+			best = minf(best, _distance_to_segment(point, prev, cur))
+			prev = cur
+	return best
+
+
+## The distance from a point to a line segment.
+static func _distance_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var len2 := ab.length_squared()
+	if len2 < 0.0001:
+		return p.distance_to(a)
+	var t := clampf((p - a).dot(ab) / len2, 0.0, 1.0)
+	return p.distance_to(a + ab * t)
+
+
+## Does a touch at `point` land on the ring?
+##
+## `tolerance` is the finger pad: the tube's half width plus enough slack to
+## make a fingertip count.
+static func ring_hit_test(shape: String, radius: float, gap_width_deg: float, has_double_gap: bool, point: Vector2, thickness: float) -> bool:
+	var tolerance: float = maxf(thickness * 0.5 + 12.0, 16.0)
+	return distance_to_ring(shape, radius, gap_width_deg, has_double_gap, point) <= tolerance
+
+
 static func point_on_shape(shape: String, radius: float, angle_rad: float) -> Vector2:
 	match shape:
 		"oval":
