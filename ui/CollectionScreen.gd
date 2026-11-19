@@ -72,31 +72,36 @@ func _tool_card(id: String, meta: Dictionary, unlocked: bool) -> Control:
 	var rarity := str(meta.get("rarity", "common"))
 	var r_col := RingTheme.rarity_color(rarity)
 
-	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	# A stylebox, not a nine-patch of the button skin: the skin's corner
+	# patches were 42px in a 62px card, so the corners rendered as white
+	# blobs and the rarity line was cut off.
+	var card := Control.new()
+	card.custom_minimum_size = Vector2(0, 62)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	var skin := NinePatchRect.new()
-	skin.texture = RingTheme.pack_tex("ui/button_nav.png" if unlocked else "ui/button_nav_pressed.png")
-	skin.patch_margin_left = 40
-	skin.patch_margin_right = 40
-	skin.patch_margin_top = 40
-	skin.patch_margin_bottom = 40
-	skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var skin := Panel.new()
 	skin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	skin.add_theme_stylebox_override("panel", RingTheme.collection_card_style(unlocked))
 	card.add_child(skin)
 
 	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 10
+	row.offset_right = -10
+	row.offset_top = 6
+	row.offset_bottom = -6
 	row.add_theme_constant_override("separation", 8)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(row)
 
 	var icon := TextureRect.new()
 	icon.texture = RingTheme.pack_tex(str(meta.get("icon", "")))
-	icon.custom_minimum_size = Vector2(32, 32)
+	icon.custom_minimum_size = Vector2(30, 30)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if not unlocked:
 		icon.modulate = Color(1, 1, 1, 0.35)
@@ -105,13 +110,14 @@ func _tool_card(id: String, meta: Dictionary, unlocked: bool) -> Control:
 	var text_col := VBoxContainer.new()
 	text_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	text_col.add_theme_constant_override("separation", 0)
+	text_col.add_theme_constant_override("separation", 1)
 	text_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(text_col)
 
-	var name_lbl := RingTheme.label(str(meta.get("name", id)), 15, RingTheme.INK, HORIZONTAL_ALIGNMENT_LEFT)
+	var name_lbl := RingTheme.label(str(meta.get("name", id)), 14, RingTheme.INK, HORIZONTAL_ALIGNMENT_LEFT)
 	name_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	name_lbl.clip_text = true
+	name_lbl.custom_minimum_size = Vector2(0, 18)
 	text_col.add_child(name_lbl)
 
 	var tag := "POWER" if str(meta.get("type", "")) == "active" else "PERK"
@@ -120,6 +126,7 @@ func _tool_card(id: String, meta: Dictionary, unlocked: bool) -> Control:
 	var tag_lbl := RingTheme.label("%s · %s" % [tag, rarity.to_upper()], 11, r_col if unlocked else RingTheme.MUTED, HORIZONTAL_ALIGNMENT_LEFT)
 	tag_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	tag_lbl.clip_text = true
+	tag_lbl.custom_minimum_size = Vector2(0, 15)
 	text_col.add_child(tag_lbl)
 
 	card.gui_input.connect(func(event):

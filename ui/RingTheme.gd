@@ -482,6 +482,19 @@ static func zen_button(kind: String = "nav", text: String = "", font_size: int =
 
 ## The stylebox for a button slab: a rounded pill with a dark edge, a fat
 ## bottom lip and a soft shadow.
+## A card in the collection list. A locked one is dimmed.
+static func collection_card_style(unlocked: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color("FFFAE2") if unlocked else Color("EDE7D6")
+	sb.border_color = Color("C89A3C") if unlocked else Color("A79A80")
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(14)
+	sb.shadow_color = Color(0.12, 0.24, 0.10, 0.16)
+	sb.shadow_size = 5
+	sb.shadow_offset = Vector2(0, 2)
+	return sb
+
+
 ## The small parchment card the stat readouts sit on.
 static func stat_card_style() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
