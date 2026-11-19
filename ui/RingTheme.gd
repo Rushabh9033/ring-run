@@ -128,15 +128,25 @@ static func present_modal(modal: Control, card: Control = null) -> void:
 
 ## Slide a screen in from the right. Used when the game hands over to the
 ## board, so the change of scene reads as a movement rather than a cut.
+## Slide a screen in from the side.
+##
+## The slide is done on the offsets, not on `position`. A full-rect anchored
+## Control derives its position from its anchors, so writing `position.x`
+## fights the anchor system: the screen ends up narrower than the screen and
+## stays shifted if the tween is interrupted.
 static func slide_in(control: Control, from_right: bool = true, distance: float = 90.0) -> void:
 	if control == null or not is_instance_valid(control):
 		return
 	var dir := 1.0 if from_right else -1.0
 	control.modulate.a = 0.0
-	control.position.x += dir * distance
+	var base_left := control.offset_left
+	var base_right := control.offset_right
+	control.offset_left = base_left + dir * distance
+	control.offset_right = base_right + dir * distance
 	var tw := control.create_tween().set_parallel(true)
 	tw.tween_property(control, "modulate:a", 1.0, 0.22)
-	tw.tween_property(control, "position:x", control.position.x - dir * distance, 0.30).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(control, "offset_left", base_left, 0.30).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(control, "offset_right", base_right, 0.30).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 ## The dimmer behind a modal fades in rather than snapping.
@@ -298,9 +308,13 @@ static func zen_page(title: String, icon_path: String, scroll_height: float = 38
 	# child, which turns the whole page into a column. Nothing may expand
 	# vertically either, so the card ends up exactly as tall as its content.
 	# The card is as wide as the screen allows, with a comfortable minimum.
-	# A fixed 420px was wider than a small phone.
+	# A fixed 420px was wider than a small phone. The page is not in the tree
+	# yet when this runs, so fall back to the design width.
 	var side_pad := 16.0
-	var avail: float = page.get_viewport_rect().size.x - 2.0 * side_pad
+	var screen_w: float = 720.0
+	if page.is_inside_tree():
+		screen_w = page.get_viewport_rect().size.x
+	var avail: float = screen_w - 2.0 * side_pad
 	panel.custom_minimum_size = Vector2(minf(avail, 460.0), 0)
 	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	margin.add_child(panel)
@@ -452,14 +466,16 @@ static func zen_button(kind: String = "nav", text: String = "", font_size: int =
 		tw.tween_property(root, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 	root.add_child(hit)
 
-	if text != "":
-		var lbl := label(text, font_size, ink)
-		lbl.name = "Caption"
-		lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		root.add_child(lbl)
+	# The caption is always created, even with no text: a toggle sets its
+	# label after the button is built, and a button with no caption node
+	# would show as an empty slab.
+	var lbl := label(text, font_size, ink)
+	lbl.name = "Caption"
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(lbl)
 
 	return root
 

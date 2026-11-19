@@ -173,6 +173,54 @@ All notable changes to Ring Run are recorded here.
   burst never travels as one column.
 - Sparks now slow down as they fly and leave a short trail.
 
+### Fixed
+- **Touching a square, oval or triangle ring grabbed the wrong ring.** The
+  hit test compared the distance from the board centre with the ring's
+  radius, which is only right for a circle. It now follows the same outline
+  the ring is drawn from, and the gap is open, so a touch in the exit
+  channel does not grab a ring.
+- **Two different board-scale calculations were fighting**, so the board
+  ended up a different size depending on which ran last. There is now one,
+  applied after the new ring specs are known.
+- **Every connector pin was drawn as an open cream pin**, which falsely showed
+  an unlock. The pin is now drawn closed while the ring is still waiting on
+  another one.
+- **The ring end caps were two stacked discs**, which read as beads on the
+  arc. They are now one cap filled with the tube's own colour.
+- **The grab sound and haptic played twice**, from both the drag controller
+  and the gameplay screen. The duplicate is gone and the near-alignment
+  chime is edge-triggered.
+- **The button skins were squashed.** A nine-patch cannot scale a pill's
+  rounded caps, so a 56px button built from a 112px texture with 42px margins
+  had 84px of vertical patch in a 56px box, and its gloss smeared into a
+  stripe. Buttons, the coin pill, the stat cards and the modal card are drawn
+  with styleboxes now, which are correct at any size.
+- **The gameplay HUD row overflowed the screen.** The hint and par labels
+  were inside PanelContainers, and a container takes its minimum size from
+  its child - a Label's minimum width is the width of its text. The row is a
+  flow now and the labels are not in containers.
+- **The modal widths were fixed pixel values** (500px for the perk modal,
+  wider than a small phone). They are viewport-aware now.
+- **Only the modal card animates.** The full-screen scrim fades on its own,
+  so the celebration behind the modal is not hidden by a panel that is also
+  fading. The panda sits on the card's corner, and the board's panda steps
+  aside while a modal is up.
+- **A screen sliding in fought the anchor system.** The slide wrote
+  `position.x` on a full-rect anchored Control, which left the screen
+  narrower than the screen and shifted if the tween was interrupted. It
+  slides the offsets now.
+- **The settings toggles rendered as empty slabs**, because a button only
+  got a caption when it was built with text.
+
+### Added
+- `tests/test_layout.gd` - measures real geometry: nothing overflows, the
+  board does not collide with the header or the power bar, every button is a
+  usable tap target and no text is clipped. It checks 31 buttons across all
+  eight screens.
+- `tests/test_responsive.gd` now covers every screen, not just the home
+  screen, on a narrow phone, a standard portrait phone, a tall phone and a
+  tablet.
+
 ### Known issues
 - Rewind spends its charge without undoing the move.
 - One-Way and Locked Ring curses are shown but not enforced.
