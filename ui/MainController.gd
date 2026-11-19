@@ -27,6 +27,11 @@ func _show_screen(target: Control) -> void:
 		if node == null:
 			continue
 		node.visible = (node == target)
+	# The board keeps its panda out of the way while a modal is up: two pandas
+	# in one frame reads as a mistake, not as a celebration.
+	if gameplay_screen != null and gameplay_screen.has_method("set_mascot_hidden"):
+		var overlay_up: bool = target != gameplay_screen and target != null
+		gameplay_screen.set_mascot_hidden(overlay_up)
 	if target == gameplay_screen:
 		# The board slides in from the right so the handover reads as movement.
 		RingTheme.slide_in(gameplay_screen, true, 70.0)
@@ -145,12 +150,20 @@ func _on_puzzle_started(spec: Dictionary) -> void:
 	stage_banner.visible = false
 	boss_banner.visible = false
 
+## Hide the board's panda while a modal is up: two pandas in one frame reads
+## as a mistake, not as a celebration.
+func _set_modal_open(open: bool) -> void:
+	if gameplay_screen != null and gameplay_screen.has_method("set_mascot_hidden"):
+		gameplay_screen.set_mascot_hidden(open)
+
+
 func _on_puzzle_cleared(summary: Dictionary) -> void:
 	last_cleared_was_boss = bool(summary.get("is_boss", false))
 	var cards := PerkSystem.draw_cards(RunController.rng, last_cleared_was_boss, false)
 	var tw := create_tween()
 	tw.tween_interval(0.55)
 	tw.tween_callback(func():
+		_set_modal_open(true)
 		# The coins fly from the board the reward was won on to the real coin
 		# counter in the HUD - both ends measured from the live layout.
 		var origin: Vector2 = VfxLib.global_centre(gameplay_screen.board_root)
@@ -159,12 +172,14 @@ func _on_puzzle_cleared(summary: Dictionary) -> void:
 	)
 
 func _on_perk_card_selected(_card: Dictionary) -> void:
+	_set_modal_open(false)
 	if last_cleared_was_boss and RunController.can_use_shrine():
 		shrine_modal.show_shrine()
 	else:
 		RunController.advance_to_next_puzzle()
 
 func _on_shrine_completed(claimed_cards: Array[Dictionary]) -> void:
+	_set_modal_open(false)
 	if not claimed_cards.is_empty():
 		last_cleared_was_boss = false
 		perk_modal.present_cards(claimed_cards, {})
@@ -172,4 +187,5 @@ func _on_shrine_completed(claimed_cards: Array[Dictionary]) -> void:
 		RunController.advance_to_next_puzzle()
 
 func _on_run_over(summary: Dictionary) -> void:
+	_set_modal_open(true)
 	run_over_screen.show_summary(summary)

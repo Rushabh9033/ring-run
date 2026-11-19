@@ -64,6 +64,12 @@ func _ready() -> void:
 	_build()
 	SaveService.save_updated.connect(refresh_stats)
 	resized.connect(_layout)
+	# The hero entrance: the logo eases in with a small scale settle.
+	_logo.scale = Vector2(0.86, 0.86)
+	_logo.modulate.a = 0.0
+	var intro := create_tween().set_parallel(true)
+	intro.tween_property(_logo, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	intro.tween_property(_logo, "modulate:a", 1.0, 0.3)
 	# The viewport can change size without the control's own `resized` firing
 	# (window resize, device rotation, safe-area change), and the layout has
 	# to follow it.
@@ -112,15 +118,22 @@ func _build() -> void:
 	_coin_pill.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	_coin_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_coin_pill)
-	var coin_skin := NinePatchRect.new()
+	# A stylebox, not a nine-patch: the pill is 40px tall and the texture's
+	# caps were 88px, so the pill was squashed.
+	var coin_skin := Panel.new()
 	coin_skin.name = "Skin"
-	coin_skin.texture = _tex("ui/pill_currency.png")
-	coin_skin.patch_margin_left = 44
-	coin_skin.patch_margin_right = 44
-	coin_skin.patch_margin_top = 44
-	coin_skin.patch_margin_bottom = 44
-	coin_skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	coin_skin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	coin_skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var coin_style := StyleBoxFlat.new()
+	coin_style.bg_color = Color("FFFAE2")
+	coin_style.border_color = Color("C89A3C")
+	coin_style.set_border_width_all(2)
+	coin_style.border_width_bottom = 4
+	coin_style.set_corner_radius_all(20)
+	coin_style.shadow_color = Color(0.12, 0.24, 0.10, 0.22)
+	coin_style.shadow_size = 6
+	coin_style.shadow_offset = Vector2(0, 3)
+	coin_skin.add_theme_stylebox_override("panel", coin_style)
 	_coin_pill.add_child(coin_skin)
 	var coin_pad := MarginContainer.new()
 	coin_pad.add_theme_constant_override("margin_left", 10)
@@ -199,13 +212,12 @@ func _build() -> void:
 	_stat_panels.append(streak_panel)
 
 	# --- START RUN ---
-	start_btn = _skinned_button("ui/button_start_normal.png", "ui/button_start_pressed.png",
-		"ui/button_start_disabled.png")
+	start_btn = _skinned_button("primary", 78.0)
 	(start_btn.get_node("Hit") as Button).pressed.connect(_on_start_pressed)
 	add_child(start_btn)
 
 	# --- DAILY RUN ---
-	daily_btn = _skinned_button("ui/button_daily.png", "ui/button_daily.png", "ui/button_daily.png")
+	daily_btn = _skinned_button("daily", 52.0)
 	(daily_btn.get_node("Hit") as Button).pressed.connect(_on_daily_pressed)
 	add_child(daily_btn)
 	daily_lbl = _label("", 14, Color("4A3428"))
@@ -222,7 +234,7 @@ func _build() -> void:
 		["icons/icon_shop.png", "Shop", func(): _emit_nav(shop_pressed)],
 		["icons/icon_settings.png", "Settings", func(): _emit_nav(settings_pressed)],
 	]:
-		var btn := _skinned_button("ui/button_nav.png", "ui/button_nav_pressed.png", "ui/button_nav_pressed.png")
+		var btn := _skinned_button("nav", 56.0)
 		(btn.get_node("Hit") as Button).pressed.connect(entry[2])
 		nav.add_child(btn)
 		nav_buttons.append(btn)
@@ -280,21 +292,29 @@ func _make_ring(path: String) -> TextureRect:
 ## Godot 4.7 dropped Button.texture_normal, so the skin is a TextureRect and
 ## a transparent Button sits over it to catch the tap. The pressed state
 ## swaps the skin.
-func _skinned_button(normal: String, pressed: String, disabled: String) -> Control:
+## A home-screen button.
+##
+## The skin used to be a nine-patch, but a nine-patch cannot scale a pill's
+## rounded caps, so a 56px button built from a 112px texture was squashed and
+## its gloss smeared into a stripe. A stylebox draws the rounded rect at
+## whatever size it is given, so the button is right at every height.
+func _skinned_button(kind: String, height: float = 56.0) -> Control:
+	var spec: Dictionary = RingTheme.SLAB_COLORS.get(kind, RingTheme.SLAB_COLORS["nav"])
+	var fill: Color = spec["fill"]
+	var press: Color = spec["press"]
+	var edge: Color = spec["edge"]
+	var ink: Color = spec["ink"]
+
 	var root := Control.new()
+	root.custom_minimum_size = Vector2(0, height)
 	root.mouse_filter = Control.MOUSE_FILTER_PASS
 
-	# A nine-patch, so the skin keeps its corners instead of being smeared.
-	var skin := NinePatchRect.new()
-	skin.name = "Skin"
-	skin.texture = _tex(normal)
-	skin.patch_margin_left = 42
-	skin.patch_margin_right = 42
-	skin.patch_margin_top = 42
-	skin.patch_margin_bottom = 42
-	skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	skin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.add_child(skin)
+	var body := Panel.new()
+	body.name = "Body"
+	body.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_theme_stylebox_override("panel", RingTheme.slab_style(fill, edge, height))
+	root.add_child(body)
 
 	var hit := Button.new()
 	hit.name = "Hit"
@@ -303,12 +323,14 @@ func _skinned_button(normal: String, pressed: String, disabled: String) -> Contr
 	hit.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hit.button_down.connect(func():
-		skin.texture = _tex(pressed)
-		# The press scale is on the root, so the skin and the text move together.
+		body.add_theme_stylebox_override("panel", RingTheme.slab_style(press, edge, height))
+		# The press scale is on the root, so the slab and the text move together.
+		root.pivot_offset = root.size * 0.5
 		var tw := root.create_tween()
 		tw.tween_property(root, "scale", Vector2(0.97, 0.97), 0.07))
 	hit.button_up.connect(func():
-		skin.texture = _tex(normal)
+		body.add_theme_stylebox_override("panel", RingTheme.slab_style(fill, edge, height))
+		root.pivot_offset = root.size * 0.5
 		var tw := root.create_tween()
 		tw.tween_property(root, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 	root.add_child(hit)
@@ -332,15 +354,13 @@ func _stat_panel(caption: String, icon_path: String) -> PanelContainer:
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	# The gold skin is a TextureRect behind the content.
-	var skin := NinePatchRect.new()
+	# A stylebox, not a nine-patch: the card was a gold outline around a
+	# translucent panel, because the nine-patch squeezed its own middle.
+	var skin := Panel.new()
 	skin.name = "Skin"
-	skin.texture = _tex("ui/panel_stat.png")
-	skin.patch_margin_left = 34
-	skin.patch_margin_right = 34
-	skin.patch_margin_top = 34
-	skin.patch_margin_bottom = 34
-	skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	skin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	skin.add_theme_stylebox_override("panel", RingTheme.stat_card_style())
 	panel.add_child(skin)
 
 	var pad := MarginContainer.new()
@@ -542,8 +562,14 @@ func _layout() -> void:
 		nav.offset_bottom = -34 * s
 	# The nav is a row of skins; the icon and caption go inside each one.
 	# This runs after the row has been laid out, so the sizes are real.
+	# The press scale pivots on the button's own centre, so it never drifts
+	# to one side.
+	for btn in [start_btn, daily_btn]:
+		if btn != null:
+			btn.pivot_offset = btn.size * 0.5
 	for btn in nav_buttons:
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.pivot_offset = btn.size * 0.5
 		var skin := btn.get_node_or_null("Skin") as TextureRect
 		if skin:
 			skin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

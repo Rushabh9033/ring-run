@@ -42,7 +42,9 @@ func _ready() -> void:
 	holder.add_child(center)
 
 	panel = RingTheme.gold_panel()
-	panel.custom_minimum_size = Vector2(430, 0)
+	# As wide as the phone allows, with a floor for very small screens.
+	var vp := get_viewport_rect().size
+	panel.custom_minimum_size = Vector2(clampf(vp.x - 40.0, 260.0, 460.0), 0)
 	center.add_child(panel)
 
 	var vbox := panel.get_node("Pad/Content") as VBoxContainer
@@ -143,7 +145,7 @@ func show_summary(summary: Dictionary) -> void:
 	if panel != null:
 		var dress := func() -> void: RingTheme.dress_modal(panel, self, true)
 		get_tree().create_timer(0.05).timeout.connect(dress)
-	RingTheme.present_modal(self)
+	RingTheme.present_modal(self, panel)
 
 ## Set the caption on a zen button.
 func _set_button_text(btn: Control, text: String) -> void:

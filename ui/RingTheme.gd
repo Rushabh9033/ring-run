@@ -97,16 +97,33 @@ static func bamboo_background(host: Control, scrim_alpha: float = 0.42) -> void:
 		host.add_child(scrim)
 
 
-## Pop a modal in: it scales up from slightly small with a soft overshoot.
-static func present_modal(panel: Control) -> void:
-	if panel == null or not is_instance_valid(panel):
+## Present a modal.
+##
+## Only the CARD animates: it scales up from slightly small with a soft
+## overshoot. The full-screen scrim fades on its own, so the celebration
+## behind the modal is not hidden by a panel that is also fading.
+static func present_modal(modal: Control, card: Control = null) -> void:
+	if modal == null or not is_instance_valid(modal):
 		return
-	panel.pivot_offset = panel.size * 0.5
-	panel.scale = Vector2(0.88, 0.88)
-	panel.modulate.a = 0.0
-	var tw := panel.create_tween().set_parallel(true)
-	tw.tween_property(panel, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(panel, "modulate:a", 1.0, 0.18)
+
+	# The scrim fades in by itself.
+	var scrim := modal.get_node_or_null("Dimmer") as Control
+	if scrim == null:
+		scrim = modal.get_node_or_null("Scrim") as Control
+	if scrim != null:
+		scrim.modulate.a = 0.0
+		var sw := scrim.create_tween()
+		sw.tween_property(scrim, "modulate:a", 1.0, 0.16)
+
+	# The card pops.
+	var target: Control = card if card != null and is_instance_valid(card) else modal
+	if target == null:
+		return
+	target.pivot_offset = target.size * 0.5
+	target.scale = Vector2(0.88, 0.88)
+	var tw := target.create_tween().set_parallel(true)
+	tw.tween_property(target, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(target, "modulate:a", 1.0, 0.18)
 
 
 ## Slide a screen in from the right. Used when the game hands over to the
@@ -225,8 +242,9 @@ static func dress_modal(panel: PanelContainer, host: Node = null, with_panda: bo
 		panda.texture = tex("res://art/panda_mascot_celebrating.png")
 		panda.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		panda.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		panda.size = Vector2(118, 118)
-		panda.position = panel.global_position + Vector2((w - 118.0) * 0.5, -104.0)
+		panda.size = Vector2(96, 96)
+		# On the card's top-right corner, so it never sits over the title.
+		panda.position = panel.global_position + Vector2(w - 74.0, -58.0)
 		panda.z_index = 2
 		panda.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		host.add_child(panda)
@@ -279,7 +297,11 @@ static func zen_page(title: String, icon_path: String, scroll_height: float = 38
 	# Without a minimum width the card collapses to the width of its narrowest
 	# child, which turns the whole page into a column. Nothing may expand
 	# vertically either, so the card ends up exactly as tall as its content.
-	panel.custom_minimum_size = Vector2(420, 0)
+	# The card is as wide as the screen allows, with a comfortable minimum.
+	# A fixed 420px was wider than a small phone.
+	var side_pad := 16.0
+	var avail: float = page.get_viewport_rect().size.x - 2.0 * side_pad
+	panel.custom_minimum_size = Vector2(minf(avail, 460.0), 0)
 	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	margin.add_child(panel)
 
@@ -336,15 +358,14 @@ static func gold_panel(radius: int = 24) -> PanelContainer:
 
 	# A NinePatchRect, so a tall panel keeps its gold corners and only the
 	# middle stretches. A stretched TextureRect distorts the rim.
-	var skin := NinePatchRect.new()
+	# A stylebox, not a nine-patch: the card's own margin was 64px, so a
+	# panel shorter than 128px had no stretchable middle and the rim was
+	# squashed. A stylebox is correct at any height.
+	var skin := Panel.new()
 	skin.name = "Skin"
-	skin.texture = pack_tex("ui/panel_card.png")
-	skin.patch_margin_left = 64
-	skin.patch_margin_right = 64
-	skin.patch_margin_top = 64
-	skin.patch_margin_bottom = 64
-	skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	skin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	skin.add_theme_stylebox_override("panel", gold_card_style())
 	panel.add_child(skin)
 
 	# Inner padding, so the content never sits under the gold rim.
@@ -369,35 +390,48 @@ static func gold_panel(radius: int = 24) -> PanelContainer:
 	return panel
 
 
-## A button with a Zen Bamboo skin and live text on top.
-## Godot 4.7 dropped Button.texture_normal, so the skin is a TextureRect and a
-## transparent Button sits over it to catch the tap.
+## The colours a button slab is built from.
+##
+## kind: "primary" | "nav" | "gold" | "blue" | "danger" | "daily"
+const SLAB_COLORS := {
+	"primary": {"fill": Color("7EDC5A"), "press": Color("4FBE3C"), "edge": Color("1E601C"), "ink": Color.WHITE},
+	"nav": {"fill": Color("FFFAE2"), "press": Color("EBD9AE"), "edge": Color("C89A3C"), "ink": Color("4A3428")},
+	"daily": {"fill": Color("FFFAE2"), "press": Color("EBD9AE"), "edge": Color("C89A3C"), "ink": Color("4A3428")},
+	"gold": {"fill": Color("F0B429"), "press": Color("D69A18"), "edge": Color("9A6B0C"), "ink": Color("4A3208")},
+	"blue": {"fill": Color("4E8BD4"), "press": Color("2E64A4"), "edge": Color("1E4C80"), "ink": Color.WHITE},
+	"danger": {"fill": Color("D9525F"), "press": Color("BC3F4C"), "edge": Color("8C2733"), "ink": Color.WHITE},
+}
+
+
+## A chunky button, drawn with styleboxes.
+##
+## The button skins used to be nine-patches, but a nine-patch cannot scale a
+## pill's rounded caps: the cap pixels never shrink, so a 56px button built
+## from a 112px texture with 40px margins had 80px of vertical patch in a
+## 56px box - it was squashed, and the gloss smeared into a stripe.
+##
+## A StyleBoxFlat draws the rounded rect at whatever size it is given, so the
+## button is correct at every height. The look is the same: a warm fill, a
+## dark edge and a fat bottom lip that reads as an extruded slab.
+##
 ## Returns the Control; add labels and icons to it as children.
 static func zen_button(kind: String = "nav", text: String = "", font_size: int = 16, height: float = 56.0) -> Control:
-	var normal := "ui/button_nav.png"
-	var pressed := "ui/button_nav_pressed.png"
-	match kind:
-		"primary":
-			normal = "ui/button_start_normal.png"
-			pressed = "ui/button_start_pressed.png"
-		"daily":
-			normal = "ui/button_daily.png"
-			pressed = "ui/button_daily.png"
+	var spec: Dictionary = SLAB_COLORS.get(kind, SLAB_COLORS["nav"])
+	var fill: Color = spec["fill"]
+	var press: Color = spec["press"]
+	var edge: Color = spec["edge"]
+	var ink: Color = spec["ink"]
 
 	var root := Control.new()
 	root.custom_minimum_size = Vector2(0, height)
 	root.mouse_filter = Control.MOUSE_FILTER_PASS
 
-	var skin := NinePatchRect.new()
-	skin.name = "Skin"
-	skin.texture = pack_tex(normal)
-	skin.patch_margin_left = 40
-	skin.patch_margin_right = 40
-	skin.patch_margin_top = 40
-	skin.patch_margin_bottom = 40
-	skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	skin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.add_child(skin)
+	var body := Panel.new()
+	body.name = "Body"
+	body.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_theme_stylebox_override("panel", slab_style(fill, edge, height))
+	root.add_child(body)
 
 	var hit := Button.new()
 	hit.name = "Hit"
@@ -405,12 +439,21 @@ static func zen_button(kind: String = "nav", text: String = "", font_size: int =
 	hit.focus_mode = Control.FOCUS_NONE
 	hit.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hit.button_down.connect(func(): skin.texture = pack_tex(pressed))
-	hit.button_up.connect(func(): skin.texture = pack_tex(normal))
+	hit.button_down.connect(func():
+		body.add_theme_stylebox_override("panel", slab_style(press, edge, height))
+		# The press scale is on the root, so the slab and the text move together.
+		root.pivot_offset = root.size * 0.5
+		var tw := root.create_tween()
+		tw.tween_property(root, "scale", Vector2(0.97, 0.97), 0.07))
+	hit.button_up.connect(func():
+		body.add_theme_stylebox_override("panel", slab_style(fill, edge, height))
+		root.pivot_offset = root.size * 0.5
+		var tw := root.create_tween()
+		tw.tween_property(root, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 	root.add_child(hit)
 
 	if text != "":
-		var lbl := label(text, font_size, Color("4A3428"))
+		var lbl := label(text, font_size, ink)
 		lbl.name = "Caption"
 		lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -421,7 +464,50 @@ static func zen_button(kind: String = "nav", text: String = "", font_size: int =
 	return root
 
 
-## The icon that belongs on a zen button, placed to the left of the text.
+## The stylebox for a button slab: a rounded pill with a dark edge, a fat
+## bottom lip and a soft shadow.
+## The small parchment card the stat readouts sit on.
+static func stat_card_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color("FFFAE2")
+	sb.border_color = Color("C89A3C")
+	sb.set_border_width_all(2)
+	sb.border_width_bottom = 4
+	sb.set_corner_radius_all(16)
+	sb.shadow_color = Color(0.12, 0.24, 0.10, 0.20)
+	sb.shadow_size = 7
+	sb.shadow_offset = Vector2(0, 3)
+	return sb
+
+
+## The parchment card with the bamboo-wood border, used by every modal.
+static func gold_card_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color("FFFDF7")
+	sb.border_color = Color("3B5323")
+	sb.set_border_width_all(4)
+	sb.border_width_bottom = 7
+	sb.set_corner_radius_all(24)
+	sb.shadow_color = Color(0.06, 0.12, 0.04, 0.34)
+	sb.shadow_size = 18
+	sb.shadow_offset = Vector2(0, 8)
+	return sb
+
+
+## The parchment card with the bamboo-wood border, used by every modal.
+static func slab_style(fill: Color, edge: Color, height: float) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = fill
+	sb.border_color = edge
+	sb.set_border_width_all(2)
+	# The lip is what makes it look extruded, so it scales with the button.
+	sb.border_width_bottom = maxi(4, int(height * 0.14))
+	sb.set_corner_radius_all(int(height * 0.5))
+	sb.shadow_color = Color(0.12, 0.24, 0.10, 0.26)
+	sb.shadow_size = maxi(6, int(height * 0.16))
+	sb.shadow_offset = Vector2(0, height * 0.07)
+	return sb
+
 static func zen_icon(root: Control, path: String, size: float = 30.0) -> TextureRect:
 	var icon := TextureRect.new()
 	icon.texture = pack_tex(path)

@@ -2,7 +2,9 @@ class_name ShrineModal
 extends Control
 ## ShrineModal — Post-Boss risk-reward decision: Spend 5 Moves for a Rare Card or Skip.
 
-signal shrine_completed(claimed_cards: Array[Dictionary])
+signal shrine_completed
+
+var panel: PanelContainer = null
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -23,7 +25,7 @@ func _ready() -> void:
 	center_margin.add_theme_constant_override("margin_bottom", 40)
 	center.add_child(center_margin)
 
-	var panel := PanelContainer.new()
+	panel = PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", RingTheme.wood_card())
 	center_margin.add_child(panel)
 
@@ -46,7 +48,7 @@ func _ready() -> void:
 ## Pop the shrine in when it appears.
 func show_shrine() -> void:
 	visible = true
-	RingTheme.present_modal(self)
+	RingTheme.present_modal(self, panel)
 
 
 func choose_spend_moves() -> void:

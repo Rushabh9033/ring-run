@@ -188,38 +188,67 @@ func _build_hud() -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(row)
 
-	stage_dots = StageDotsStrip.new()
-	stage_dots.position = Vector2(0, 4)
-	row.add_child(stage_dots)
+	# The row is a flow, not a set of fixed positions: the stage dots, the
+	# mechanic hint and the par readout each take what they need, and the
+	# hint shrinks first on a narrow screen.
+	var row_box := HBoxContainer.new()
+	row_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row_box.add_theme_constant_override("separation", 8)
+	row_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(row_box)
 
-	var hint_pill := PanelContainer.new()
-	hint_pill.position = Vector2(120, 0)
-	hint_pill.size = Vector2(372, ROW_H - 6)
-	hint_pill.add_theme_stylebox_override("panel", RingTheme.card_style(Color(0.98, 0.96, 0.90, 0.82), RingTheme.BAMBOO_DARK, 1, 12, 5))
+	stage_dots = StageDotsStrip.new()
+	stage_dots.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row_box.add_child(stage_dots)
+
+	# The pills are plain Controls, not PanelContainers: a container takes
+	# its minimum size from its child, and a Label's minimum width is the
+	# width of its text. A long mechanic hint or a wide readout would push
+	# the row off the edge of the screen.
+	var hint_pill := Control.new()
+	hint_pill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint_pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hint_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(hint_pill)
+	row_box.add_child(hint_pill)
+	var hint_bg := Panel.new()
+	hint_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hint_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_bg.add_theme_stylebox_override("panel", RingTheme.card_style(Color(0.98, 0.96, 0.90, 0.82), RingTheme.BAMBOO_DARK, 1, 12, 5))
+	hint_pill.add_child(hint_bg)
 
 	board_hint_label = RingTheme.label("", 13, RingTheme.MUTED, HORIZONTAL_ALIGNMENT_LEFT)
 	board_hint_label.clip_text = true
 	board_hint_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	board_hint_label.anchor_left = 0.0
+	board_hint_label.anchor_right = 1.0
+	board_hint_label.anchor_top = 0.0
+	board_hint_label.anchor_bottom = 1.0
+	board_hint_label.offset_left = 8
+	board_hint_label.offset_right = -8
 	board_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hint_pill.add_child(board_hint_label)
 
-	var par_pill := PanelContainer.new()
-	par_pill.anchor_left = 1.0
-	par_pill.anchor_right = 1.0
-	par_pill.anchor_top = 0.0
-	par_pill.anchor_bottom = 0.0
-	par_pill.offset_left = -156
-	par_pill.offset_right = 0
-	par_pill.offset_top = 0
-	par_pill.offset_bottom = ROW_H - 6
-	par_pill.add_theme_stylebox_override("panel", RingTheme.card_style(Color(0.98, 0.96, 0.90, 0.82), RingTheme.BAMBOO_DARK, 1, 12, 5))
+	var par_pill := Control.new()
+	par_pill.size_flags_horizontal = Control.SIZE_SHRINK_END
+	par_pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	par_pill.custom_minimum_size = Vector2(128, 0)
 	par_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(par_pill)
+	row_box.add_child(par_pill)
+	var par_bg := Panel.new()
+	par_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	par_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	par_bg.add_theme_stylebox_override("panel", RingTheme.card_style(Color(0.98, 0.96, 0.90, 0.82), RingTheme.BAMBOO_DARK, 1, 12, 5))
+	par_pill.add_child(par_bg)
 
 	par_label = RingTheme.label("Par 3 \u00b7 Used 0", 13, RingTheme.MUTED, HORIZONTAL_ALIGNMENT_RIGHT)
 	par_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	par_label.clip_text = true
+	par_label.anchor_left = 0.0
+	par_label.anchor_right = 1.0
+	par_label.anchor_top = 0.0
+	par_label.anchor_bottom = 1.0
+	par_label.offset_left = 8
+	par_label.offset_right = -8
 	par_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	par_pill.add_child(par_label)
 
@@ -387,6 +416,16 @@ func get_coin_counter_global_pos() -> Vector2:
 func get_coin_counter() -> Control:
 	var lbl: Label = header.get("coins", null)
 	return lbl
+
+
+## Hide the board's panda while a modal is up, so the celebrating panda on
+## the modal is the only one on screen.
+func set_mascot_hidden(hidden: bool) -> void:
+	if mascot == null:
+		return
+	if mascot.visible == not hidden:
+		return
+	mascot.visible = not hidden
 
 
 func _on_budget_changed(new_budget: int, max_cap: int, delta: int) -> void:

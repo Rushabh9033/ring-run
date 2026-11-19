@@ -41,7 +41,9 @@ func _build_ui() -> void:
 	center.add_child(margin)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(500, 0)
+	# As wide as the phone allows, with a floor for very small screens.
+	var vp := get_viewport_rect().size
+	panel.custom_minimum_size = Vector2(clampf(vp.x - 28.0, 260.0, 520.0), 0)
 	panel.add_theme_stylebox_override("panel", RingTheme.wood_card())
 	margin.add_child(panel)
 
@@ -96,7 +98,7 @@ func present_cards(cards: Array[Dictionary], clear_summary: Dictionary = {}, coi
 	if panel != null:
 		var dress := func() -> void: RingTheme.dress_modal(panel, self, true)
 		get_tree().create_timer(0.05).timeout.connect(dress)
-	RingTheme.present_modal(self)
+	RingTheme.present_modal(self, panel)
 	_fly_coins(int(clear_summary.get("earned_coins", 0)), coin_origin, coin_target)
 	if not current_cards.is_empty():
 		AudioService.play_card_reveal(str(current_cards[0].get("rarity", "common")))
