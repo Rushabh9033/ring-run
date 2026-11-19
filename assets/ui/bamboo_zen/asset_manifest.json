@@ -1,0 +1,33 @@
+{
+  "description": "Original separate PNG asset exports for Godot (one continuous natural bamboo pole, not floating cards).",
+  "reference_resolution": [
+    720,
+    1280
+  ],
+  "header_zone_centers_ratio": {
+    "level": 0.135,
+    "steps": 0.41,
+    "coins": 0.69,
+    "settings": 0.911
+  },
+  "header_guidance": "One TextureRect for complete pole; live counters and transparent controls in overlaid zone containers. Do not slice header into four pieces.",
+  "asset_map": {
+    "background/zen_garden_clean.png": "zen_bamboo_garden_path.png",
+    "header/single_natural_bamboo_four_segments.png": "four_segment_bamboo_game_ui_banner.png",
+    "hud/coin_icon.png": "golden_four_petal_flower_coin.png",
+    "hud/plus_icon.png": "bamboo_zen_plus_button.png",
+    "hud/settings_icon.png": "bamboo_jungle_gear_emblem.png",
+    "boosters/booster_frame_empty.png": "glossy_bamboo_leaf_game_frame.png",
+    "boosters/rocket_icon.png": "magical_purple_rocket_firework.png",
+    "boosters/hammer_icon.png": "magical_purple_and_gold_hammer.png",
+    "boosters/lock_icon.png": "polished_metallic_lock_badge.png"
+  },
+  "optional_alternatives": {
+    "optional/background_with_panda.png": "panda_s_bamboo_zen_garden.png",
+    "optional/booster_frame_alternative.png": "tropical_bamboo_frame_panel.png",
+    "optional/settings_icon_alternative.png": "bamboo_gear_nature_settings_icon.png",
+    "optional/rocket_baked_frame_alternative.png": "bamboo_rocket_booster_icon.png",
+    "optional/hammer_baked_frame_alternative.png": "tropical_bamboo_magic_hammer_icon.png",
+    "optional/wood_sign_alternative.png": "ornate_bamboo_leaf_signboard.png"
+  }
+}

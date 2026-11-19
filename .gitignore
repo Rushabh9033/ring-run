@@ -1,0 +1,17 @@
+# Godot 4 build output
+.godot/
+.import/
+build/
+*.translation
+
+# Editor / agent scratch
+_stale/
+_godot_test_out/
+_godot_*.log
+err.txt
+out.txt
+.claude/
+.mcp.json
+
+# macOS
+.DS_Store
