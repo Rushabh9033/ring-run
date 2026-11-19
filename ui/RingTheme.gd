@@ -425,10 +425,10 @@ static func zen_button(kind: String = "nav", text: String = "", font_size: int =
 static func zen_icon(root: Control, path: String, size: float = 30.0) -> TextureRect:
 	var icon := TextureRect.new()
 	icon.texture = pack_tex(path)
-	icon.custom_minimum_size = Vector2(size, size)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.custom_minimum_size = Vector2(size, size)
 	root.add_child(icon)
 	return icon
 
@@ -704,64 +704,96 @@ static func build_header(stage_text: String, budget_text: int, coins: int) -> Di
 
 ## One bamboo booster card: frame, tool icon, charge badge.
 static func power_card(icon_path: String, title: String, charges: int, enabled: bool = true) -> Control:
+	## One active power: the tool icon in a recessed well, a charge badge and
+	## the name. An empty slot shows a padlock instead.
+	##
+	## The card is drawn with styleboxes, not a nine-patch: a square texture
+	## stretched into a wide slot distorts both the card and the round well.
 	var card := Control.new()
-	card.custom_minimum_size = Vector2(150, 96)
+	card.custom_minimum_size = Vector2(150, 74)
 
-	var frame := TextureRect.new()
-	frame.name = "Frame"
-	frame.texture = tex(POWER_FRAME)
-	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	frame.stretch_mode = TextureRect.STRETCH_SCALE
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(frame)
+	var body := Panel.new()
+	body.name = "Body"
+	body.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var body_style := StyleBoxFlat.new()
+	body_style.bg_color = SURFACE if enabled else Color(0.93, 0.92, 0.88)
+	body_style.border_color = GOLD_DARK if enabled else Color(0.72, 0.70, 0.64)
+	body_style.set_border_width_all(2)
+	body_style.border_width_bottom = 4
+	body_style.set_corner_radius_all(14)
+	body.add_theme_stylebox_override("panel", body_style)
+	card.add_child(body)
+
+	# The recessed well: a circle, drawn as one.
+	var well := Panel.new()
+	well.name = "Well"
+	well.position = Vector2(12, 12)
+	well.size = Vector2(42, 42)
+	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var well_style := StyleBoxFlat.new()
+	well_style.bg_color = Color(0.93, 0.96, 0.91)
+	well_style.border_color = Color(0.78, 0.84, 0.75)
+	well_style.set_border_width_all(2)
+	well_style.set_corner_radius_all(22)
+	well.add_theme_stylebox_override("panel", well_style)
+	card.add_child(well)
 
 	var icon := TextureRect.new()
 	icon.name = "Icon"
-	icon.texture = tex(icon_path)
-	icon.position = Vector2(47, 4)
-	icon.size = Vector2(56, 46)
+	icon.texture = pack_tex(icon_path)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(icon)
+	icon.position = Vector2(6, 6)
+	icon.size = Vector2(30, 30)
+	well.add_child(icon)
 
 	if not enabled:
 		var lock := TextureRect.new()
 		lock.name = "Lock"
-		lock.texture = tex(LOCK_ICON)
-		lock.position = Vector2(53, 14)
-		lock.size = Vector2(44, 44)
+		lock.texture = pack_tex("icons/icon_lock.png")
 		lock.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		lock.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		card.add_child(lock)
+		lock.position = Vector2(6, 6)
+		lock.size = Vector2(30, 30)
+		well.add_child(lock)
 
-	var badge := PanelContainer.new()
-	badge.name = "Badge"
-	badge.add_theme_stylebox_override("panel", card_style(GOLD if enabled else CREAM, BAMBOO_DARK, 2, 10, 4))
-	badge.position = Vector2(104, 4)
-	badge.size = Vector2(38, 26)
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(badge)
-	var badge_lbl := label(str(charges), 14, BAMBOO_DARK)
-	badge_lbl.name = "BadgeLabel"
-	badge.add_child(badge_lbl)
+	# An empty slot has no charges to show.
+	if enabled:
+		var badge := PanelContainer.new()
+		badge.name = "Badge"
+		badge.add_theme_stylebox_override("panel", card_style(GOLD, GOLD_DARK, 2, 10, 4))
+		badge.position = Vector2(108, 6)
+		badge.size = Vector2(32, 22)
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(badge)
+		var badge_lbl := label(str(charges), 14, BAMBOO_DARK)
+		badge_lbl.name = "BadgeLabel"
+		badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		badge.add_child(badge_lbl)
 
-	if enabled and title != "":
-		var title_lbl := label(title, 12, MUTED)
-		title_lbl.name = "Title"
-		title_lbl.position = Vector2(4, 54)
-		title_lbl.size = Vector2(142, 18)
-		title_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
-		title_lbl.clip_text = true
-		title_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		card.add_child(title_lbl)
+		var name_lbl := label(title, 12, MUTED, HORIZONTAL_ALIGNMENT_LEFT)
+		name_lbl.name = "Title"
+		name_lbl.position = Vector2(62, 14)
+		name_lbl.size = Vector2(86, 18)
+		name_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		name_lbl.clip_text = true
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(name_lbl)
+
+		var desc := label("TAP TO USE", 10, BAMBOO_DARK, HORIZONTAL_ALIGNMENT_LEFT)
+		desc.name = "Hint"
+		desc.position = Vector2(62, 33)
+		desc.size = Vector2(86, 16)
+		desc.autowrap_mode = TextServer.AUTOWRAP_OFF
+		desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(desc)
 
 	return card
 
 
-## The row of passive perk pills under the board.
 static func perk_pill(perk_name: String) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", card_style(BAMBOO_TINT, BAMBOO_DARK, 2, 12, 5))

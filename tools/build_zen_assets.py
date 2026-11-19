@@ -385,6 +385,7 @@ def build_rings():
 # --------------------------------------------------------------------------
 def build_ui():
     print("ui")
+
     # The stat card: a solid ivory card with a controlled gold border and a
     # soft shadow. The old one was a translucent pill, which read as a gold
     # outline around nothing.
@@ -584,6 +585,15 @@ def build_icons():
         d.polygon([(x, 92), (x + 40, 92), (x + 33, 44), (x + 7, 44)], fill=(226, 214, 190))
     d.rounded_rectangle([112, 148, 144, 226], radius=8, fill=LEAF_GREEN)
     save(img, "icons", "icon_shop.png")
+
+    # a padlock for an empty power slot
+    img, d = icon_base()
+    d.rounded_rectangle([62, 96, 194, 214], radius=20, fill=GOLD_DARK)
+    d.rounded_rectangle([70, 104, 186, 206], radius=16, fill=GOLD)
+    d.arc([88, 44, 168, 140], 180, 360, fill=BROWN_DARK, width=18)
+    d.arc([96, 52, 160, 132], 180, 360, fill=GOLD_LIGHT, width=9)
+    d.ellipse([114, 142, 142, 170], fill=BROWN_DARK)
+    save(img, "icons", "icon_lock.png")
 
     # trophy
     img, d = icon_base()

@@ -156,7 +156,7 @@ func _build_hud() -> void:
 	const TOP := 26.0
 	const HEADER_H := 116.0
 	const ROW_H := 26.0
-	const BOTTOM_H := 158.0
+	const BOTTOM_H := 140.0
 
 	# --- BAMBOO BANNER HEADER ---
 	header = RingTheme.build_header("Garden \u00b7 1", 30, int(SaveService.data.get("coins", 0)))
@@ -277,7 +277,7 @@ func _build_hud() -> void:
 
 	# --- BOTTOM: PASSIVE PERKS + ACTIVE POWER CARDS ---
 	var bottom_panel := PanelContainer.new()
-	bottom_panel.add_theme_stylebox_override("panel", RingTheme.card_style(Color(1.0, 0.99, 0.96, 0.94), RingTheme.BAMBOO_DARK, 2, 18, 10))
+	bottom_panel.add_theme_stylebox_override("panel", RingTheme.card_style(Color(1.0, 0.99, 0.96, 1.0), RingTheme.BAMBOO_DARK, 3, 18, 8))
 	bottom_panel.anchor_left = 0.0
 	bottom_panel.anchor_right = 1.0
 	bottom_panel.anchor_top = 1.0
@@ -308,7 +308,7 @@ func _build_hud() -> void:
 	for i in range(3):
 		var slot_idx := i
 		var slot_root := Control.new()
-		slot_root.custom_minimum_size = Vector2(150, 96)
+		slot_root.custom_minimum_size = Vector2(150, 74)
 		slot_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		power_bar.add_child(slot_root)
 
@@ -687,8 +687,9 @@ func _refresh_passive_strip() -> void:
 	for c in passive_strip.get_children():
 		c.queue_free()
 	if PerkSystem.passive_perks.is_empty():
-		var hint := RingTheme.label("No passive perks yet \u2014 clear a puzzle to pick a card", 12, RingTheme.MUTED)
+		var hint := RingTheme.label("Clear a puzzle to pick a card", 12, RingTheme.MUTED)
 		hint.autowrap_mode = TextServer.AUTOWRAP_OFF
+		hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		passive_strip.add_child(hint)
 		return
 	for pid in PerkSystem.passive_perks:

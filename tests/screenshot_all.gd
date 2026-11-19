@@ -10,9 +10,8 @@ func _go() -> void:
 	await process_frame
 	await process_frame
 	var rc = root.get_node("/root/RunController")
-	var ps = root.get_node("/root/PerkSystem")
-
 	# --- board ---
+	var ps = root.get_node("/root/PerkSystem")
 	rc.start_new_run(false)
 	await process_frame
 	for i in range(5):
@@ -20,6 +19,8 @@ func _go() -> void:
 	await process_frame
 	mc.home_screen.visible = false
 	mc.gameplay_screen.visible = true
+	ps.add_active_power("panda_eye", 2)
+	ps.add_active_power("rewind", 1)
 	await create_timer(1.8).timeout
 	await _shot("board")
 
