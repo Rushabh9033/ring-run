@@ -2,6 +2,7 @@ class_name GameplayScreen
 extends Control
 
 const RingReleaseFXScript = preload("res://gameplay/ring_release_fx.gd")
+const VfxLib = preload("res://gameplay/vfx.gd")
 const ConfettiBurstScript = preload("res://gameplay/confetti_burst.gd")
 
 ## How far the release gate sticks out past the outermost ring.
@@ -372,6 +373,21 @@ func _cluster_bounds() -> Rect2:
 	var max_pt := Vector2(max_r + GATE_WIDTH, max_r)
 	return Rect2(min_pt, max_pt - min_pt)
 
+## Where the coin counter sits on screen, in global coordinates. The reward
+## coins fly to this point - it is measured, never hardcoded.
+func get_coin_counter_global_pos() -> Vector2:
+	var lbl: Label = header.get("coins", null)
+	if lbl == null or not is_instance_valid(lbl):
+		return Vector2.ZERO
+	return lbl.get_global_rect().get_center()
+
+
+## The coin counter control, so a reward can pulse it on arrival.
+func get_coin_counter() -> Control:
+	var lbl: Label = header.get("coins", null)
+	return lbl
+
+
 func _on_budget_changed(new_budget: int, max_cap: int, delta: int) -> void:
 	if budget_label != null:
 		budget_label.text = str(new_budget)
@@ -389,7 +405,7 @@ func _on_danger_zone_changed(is_danger: bool) -> void:
 		budget_label.add_theme_color_override("font_color", RingTheme.DANGER)
 		mascot.set_mood("ghabraya")
 		AudioService.play_danger_heartbeat()
-		RingReleaseFXScript.danger_pulse(board_root, board_root.position + Vector2(0, -150))
+		RingReleaseFXScript.danger_pulse(board_root, VfxLib.to_global(board_root, Vector2(0, -150)))
 	else:
 		budget_label.add_theme_color_override("font_color", RingTheme.BAMBOO_DARK)
 
@@ -599,7 +615,7 @@ func _on_ring_grabbed(ring_index: int) -> void:
 	if ring_index >= 0 and ring_index < ring_nodes.size():
 		ring_nodes[ring_index].set_grabbed(true)
 		var r_spec: Dictionary = RunController.current_puzzle_state.rings[ring_index]
-		RingReleaseFXScript.pickup_spark(board_root, ring_nodes[ring_index].position,
+		RingReleaseFXScript.pickup_spark(board_root, ring_nodes[ring_index].global_position,
 			Color.from_string(str(r_spec.get("color", "#4CAF50")), RingTheme.BAMBOO))
 		AudioService.play_piece_select()
 		PlatformServices.trigger_haptic("piece_select")
@@ -631,7 +647,7 @@ func _on_ring_move_committed(ring_index: int, new_step: int, is_slider_move: boo
 			drop.rotation = ring_nodes[idx].rotation
 			board_root.add_child(drop)
 			drop.start_drop(radius, col, 0.6, thickness, gap_deg)
-			RingReleaseFXScript.play(board_root, drop.position, radius, col, thickness, released.size(), ring_nodes[idx].rotation, gap_deg)
+			RingReleaseFXScript.play(board_root, ring_nodes[idx].global_position, radius, col, thickness, released.size(), ring_nodes[idx].rotation, gap_deg)
 			ring_nodes[idx].visible = false
 	if released.size() >= 2:
 		_spawn_floating_text("GREAT! Chain x%d" % released.size(), board_root.global_position + Vector2(0, -40), RingTheme.EPIC_GOLD)
@@ -666,7 +682,7 @@ func _on_ring_blocked_feedback(ring_index: int, contact_point: Vector2, reason: 
 		msg = "Locked Ring: Release neighbor ring first!"
 	elif reason == "slider_pin_locked":
 		msg = "Tap Slider Pin to unlock first!"
-	_spawn_floating_text(msg, contact_point + Vector2(0, -24), RingTheme.DANGER)
+	_spawn_floating_text(msg, VfxLib.to_global(self, contact_point) + Vector2(0, -24), RingTheme.DANGER)
 
 func _on_puzzle_cleared(summary: Dictionary) -> void:
 	mascot.set_mood("celebrate")
@@ -674,12 +690,12 @@ func _on_puzzle_cleared(summary: Dictionary) -> void:
 	var msg := "CLEAN SOLVE! +%d Move" % int(summary.get("clean_bonus", 1)) if is_clean else "PUZZLE CLEARED!"
 	_spawn_floating_text(msg, board_root.global_position + Vector2(0, -90), RingTheme.GOLD if is_clean else RingTheme.BAMBOO)
 	if not SaveService.is_reduced_motion():
-		ConfettiBurstScript.fire(self, board_root.global_position, 18)
+		ConfettiBurstScript.fire(self, VfxLib.global_centre(board_root), 9)
 	else:
 		# Reduced motion still gets a small sparkle, just no flying paper.
 		var confetti := CollisionSparkBurst.new()
 		add_child(confetti)
-		confetti.emit_burst(board_root.global_position, RingTheme.EPIC_GOLD, 14, 0.5)
+		confetti.emit_burst(VfxLib.global_centre(board_root), RingTheme.EPIC_GOLD, 14, 0.5)
 
 func _refresh_passive_strip() -> void:
 	if passive_strip == null:
@@ -802,13 +818,13 @@ func _apply_targeted_power_on_ring(pid: String, ring_idx: int) -> void:
 		r["initially_locked"] = false
 		var anim := HammerAnimator.new()
 		board_root.add_child(anim)
-		anim.play_bamboo_snip(Vector2.ZERO, ring_idx)
+		anim.play_bamboo_snip(ring_nodes[ring_idx].position, ring_idx)
 		_sync_ring_nodes()
 		_spawn_floating_text("Bamboo Snip! Connector sliced", board_root.global_position + Vector2(0, -50), RingTheme.BAMBOO)
 	elif pid == "pop":
 		var anim := RocketAnimator.new()
 		board_root.add_child(anim)
-		anim.play_bubble_pop(Vector2.ZERO, ring_idx)
+		anim.play_bubble_pop(ring_nodes[ring_idx].position, ring_idx)
 		r["released"] = true
 		_sync_ring_nodes()
 		_spawn_floating_text("Bubble Pop! Ring removed", board_root.global_position + Vector2(0, -50), RingTheme.EPIC_GOLD)

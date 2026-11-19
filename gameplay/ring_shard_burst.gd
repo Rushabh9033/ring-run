@@ -1,12 +1,13 @@
-extends Node2D
 class_name RingShardBurst
+extends Node2D
+
+const VfxLib = preload("res://gameplay/vfx.gd")
 
 var shards: Array = []
 var elapsed: float = 0.0
 var total_lifetime: float = 1.15
-
 func setup(center_pos: Vector2, radius: float, _start_angle: float, _end_angle: float, ring_color: Color, thickness: float = 24.0) -> void:
-	global_position = center_pos
+	VfxLib.place_at_self(self, center_pos)
 	z_index = 80
 	var count := randi_range(46, 64)
 	for i in count:
@@ -33,7 +34,6 @@ func setup(center_pos: Vector2, radius: float, _start_angle: float, _end_angle: 
 			"life": randf_range(0.72, 1.0),
 		})
 	queue_redraw()
-
 func _unique_chunk(index: int, thickness: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	var kind := (index * 3 + randi() % 4) % 6
@@ -89,7 +89,6 @@ func _unique_chunk(index: int, thickness: float) -> PackedVector2Array:
 				rad *= randf_range(0.75, 1.25)
 				pts.append(Vector2.from_angle(ang) * rad)
 	return pts
-
 func _process(delta: float) -> void:
 	elapsed += delta
 	if elapsed >= total_lifetime:
@@ -102,7 +101,6 @@ func _process(delta: float) -> void:
 		s.pos += s.vel * delta
 		s.rot += s.rot_speed * delta
 	queue_redraw()
-
 func _draw() -> void:
 	for s in shards:
 		var life: float = clampf(1.0 - elapsed / (total_lifetime * float(s.life)), 0.0, 1.0)

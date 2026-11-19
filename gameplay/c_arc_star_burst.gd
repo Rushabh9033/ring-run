@@ -1,5 +1,7 @@
-extends Node2D
 class_name CArcStarBurst
+extends Node2D
+
+const VfxLib = preload("res://gameplay/vfx.gd")
 
 const COLORS = [
 	Color("2CE8F5"), # Cyan
@@ -7,13 +9,11 @@ const COLORS = [
 	Color("FFEA28"), # Sunny Yellow
 	Color("4B6BFF"), # Royal Blue
 ]
-
 var stars: Array = []
 var elapsed: float = 0.0
 var total_lifetime: float = 0.42
-
 func setup(center_pos: Vector2, radius: float, start_ang: float = 0.0, arc_len: float = TAU) -> void:
-	global_position = center_pos
+	VfxLib.place_at_self(self, center_pos)
 	z_index = 100
 	var count := randi_range(16, 20)
 	for i in count:
@@ -26,7 +26,6 @@ func setup(center_pos: Vector2, radius: float, start_ang: float = 0.0, arc_len: 
 		var is_outline := (i % 2 == 1)
 		var star_color: Color = COLORS[randi() % COLORS.size()]
 		var star_size := randf_range(6.0, 9.0)
-		
 		stars.append({
 			"pos": spawn_pos,
 			"vel": out_dir * speed + Vector2(randf_range(-8.0, 8.0), randf_range(-18.0, 4.0)),
@@ -38,7 +37,6 @@ func setup(center_pos: Vector2, radius: float, start_ang: float = 0.0, arc_len: 
 			"life": randf_range(0.32, 0.42),
 		})
 	queue_redraw()
-
 func _process(delta: float) -> void:
 	elapsed += delta
 	if elapsed >= total_lifetime:
@@ -49,7 +47,6 @@ func _process(delta: float) -> void:
 		s.rot += s.rot_speed * delta
 		s.vel *= 0.94 # gentle dampening
 	queue_redraw()
-
 func _draw() -> void:
 	for s in stars:
 		var progress: float = clampf(elapsed / s.life, 0.0, 1.0)
@@ -59,14 +56,12 @@ func _draw() -> void:
 		var cur_size: float = s.size * scale_factor
 		if cur_size < 1.0:
 			continue
-		
 		var pts := _generate_star_pts(s.pos, cur_size, s.rot)
 		if s.outline:
 			pts.append(pts[0])
 			draw_polyline(pts, s.color, 2.2, true)
 		else:
 			draw_colored_polygon(pts, s.color)
-
 func _generate_star_pts(center: Vector2, outer_r: float, rotation: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	var inner_r := outer_r * 0.44

@@ -142,6 +142,37 @@ All notable changes to Ring Run are recorded here.
 - **The rings are now 76% of the screen width on a narrow phone** and capped
   at 86% so a tall phone stays comfortable.
 
+### Fixed
+- **Ring-release particles appeared in the top-left corner of the screen.** The
+  shard, star and praise-word effects set `global_position` but were handed a
+  coordinate relative to their parent. The rings are concentric, so a ring sits
+  at the board's origin - which wrote the effects to screen (0, 0), right on
+  top of the Stage panel.
+- The Snip and Pop effects spawned at a hardcoded `Vector2.ZERO` instead of at
+  the ring they act on.
+- The floating praise text used a global point as a local position.
+- The danger-zone pulse mixed two coordinate spaces and was doubly offset.
+- The reward coins flew to **hardcoded pixels** instead of the real currency
+  counter. They now fly from the board the reward was won on to the measured
+  position of the coin label in the HUD.
+
+### Added
+- **`gameplay/vfx.gd`** - the one place an effect is allowed to be placed. The
+  caller passes a global position; Vfx converts it into the parent's local
+  space. Every effect now goes through it.
+- `tests/test_vfx.gd` - asserts that effects land on their ring, that nothing
+  lands on the Stage panel or at the screen origin, that the coordinate
+  round trip does not drift, and that effects clean themselves up.
+- Development-only debug markers (`Vfx.DEBUG_MARKERS`, off by default) that
+  show the emitter centre, the parent-local spawn position and the intended
+  direction.
+
+### Changed
+- Confetti chunks were 48px hexagons that covered the puzzle; they are now
+  small torn-paper pieces that fade and shrink, with a sideways drift so the
+  burst never travels as one column.
+- Sparks now slow down as they fly and leave a short trail.
+
 ### Known issues
 - Rewind spends its charge without undoing the move.
 - One-Way and Locked Ring curses are shown but not enforced.

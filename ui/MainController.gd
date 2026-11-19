@@ -1,4 +1,6 @@
 extends Control
+
+const VfxLib = preload("res://gameplay/vfx.gd")
 ## MainController — Root scene orchestrator connecting GameplayScreen, HomeScreen,
 ## PerkChoiceModal, ShrineModal, RunOverScreen, Stage/Boss banners, and sub-screens.
 
@@ -149,7 +151,11 @@ func _on_puzzle_cleared(summary: Dictionary) -> void:
 	var tw := create_tween()
 	tw.tween_interval(0.55)
 	tw.tween_callback(func():
-		perk_modal.present_cards(cards, summary)
+		# The coins fly from the board the reward was won on to the real coin
+		# counter in the HUD - both ends measured from the live layout.
+		var origin: Vector2 = VfxLib.global_centre(gameplay_screen.board_root)
+		var target: Vector2 = gameplay_screen.get_coin_counter_global_pos()
+		perk_modal.present_cards(cards, summary, origin, target)
 	)
 
 func _on_perk_card_selected(_card: Dictionary) -> void:

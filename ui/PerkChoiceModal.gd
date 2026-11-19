@@ -69,7 +69,10 @@ func _build_ui() -> void:
 	vbox.add_child(reroll_btn)
 
 
-func present_cards(cards: Array[Dictionary], clear_summary: Dictionary = {}) -> void:
+## `coin_target` is the global position of the real coin counter in the HUD.
+## `coin_origin` is where the reward was earned. Both are optional: without a
+## target the coins simply do not fly.
+func present_cards(cards: Array[Dictionary], clear_summary: Dictionary = {}, coin_origin: Vector2 = Vector2.ZERO, coin_target: Vector2 = Vector2.ZERO) -> void:
 	current_cards = cards
 	reroll_used_this_puzzle = false
 	if reroll_btn != null:
@@ -94,19 +97,17 @@ func present_cards(cards: Array[Dictionary], clear_summary: Dictionary = {}) -> 
 		var dress := func() -> void: RingTheme.dress_modal(panel, self, true)
 		get_tree().create_timer(0.05).timeout.connect(dress)
 	RingTheme.present_modal(self)
-	_fly_coins(int(clear_summary.get("earned_coins", 0)))
+	_fly_coins(int(clear_summary.get("earned_coins", 0)), coin_origin, coin_target)
 	if not current_cards.is_empty():
 		AudioService.play_card_reveal(str(current_cards[0].get("rarity", "common")))
 
 
-## The coins earned fly from the summary up to the coin counter.
-func _fly_coins(amount: int) -> void:
-	if amount <= 0:
+## The coins earned fly from where the reward was won to the real coin
+## counter. Both ends are measured from the live UI, never guessed.
+func _fly_coins(amount: int, origin: Vector2, target: Vector2) -> void:
+	if amount <= 0 or target == Vector2.ZERO:
 		return
-	var coin_rect := get_viewport().get_visible_rect()
-	var from := Vector2(coin_rect.size.x * 0.5, coin_rect.size.y * 0.42)
-	var to := Vector2(coin_rect.size.x - 56.0, 44.0)
-	CoinFlyAnimationScript.play_fly_coins(self, from, to, mini(amount, 10), AudioService, null,
+	CoinFlyAnimationScript.play_fly_coins(self, origin, target, mini(amount, 10), AudioService, null,
 		func(): pass,
 		func(coin_idx: int, _total: int): AudioService.play_coin_chime(coin_idx)
 	)
