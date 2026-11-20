@@ -115,9 +115,11 @@ func _go() -> void:
 func _overflowing(screen: Control, vp: Vector2) -> Array[String]:
 	var out: Array[String] = []
 	for c in _walk(screen):
-		if not c.visible or not (c is Control):
+		if not (c is Control):
 			continue
 		var ctrl := c as Control
+		if not ctrl.visible:
+			continue
 		if ctrl.size.x < 2.0 or ctrl.size.y < 2.0:
 			continue
 		# The ring canvases are 1024x1024 images with transparent margins, so

@@ -792,10 +792,10 @@ static func build_header(stage_text: String, budget_text: int, coins: int) -> Di
 	var coin_icon := TextureRect.new()
 	coin_icon.name = "CoinIcon"
 	coin_icon.texture = tex(COIN_ICON)
-	coin_icon.position = Vector2(8, 10)
-	coin_icon.size = Vector2(32, 32)
 	coin_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	coin_icon.position = Vector2(8, 10)
+	coin_icon.size = Vector2(32, 32)
 	coin_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	coin_box.add_child(coin_icon)
 
